@@ -19,3 +19,9 @@
 *.exe
 *.out
 *.app
+
+# Matlab Autosave
+*.asv
+
+# Notes to self
+*.txt
