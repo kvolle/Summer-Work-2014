@@ -14,6 +14,7 @@ classdef control < handle
             sys.yaw_p = inner_loop_gains(7);
             sys.yaw_d = inner_loop_gains(9);
             sys.velocity_p = inner_loop_gains(10);
+            sys.integral_error = [0;0;0];
         end
         function  geometry(sys)
         	% Define 4 HTMs describing propeller location
@@ -57,24 +58,68 @@ classdef control < handle
             force = sys.m*sys.velocity_p*State(9);
 
             % Calculate required thrust
-            thrust = sys.A\[moments;force];
+            thrust = sys.A\[moments;-set_points(4)];%force];
 
     
             % Apply thrust limiting (20 N / 4.5 lbf) 
             for j = 1:4
-                if thrust(j)>20
-                    thrust(j) = 20;
+                if thrust(j)>15
+                    thrust(j) = 15;
                 elseif thrust(j) < 0;
                     thrust(j) = 0;
                 end
             end
         end
         function inner_set_points = outer_loop(sys,state, set_points)
+            %{
             inner_x_vel_p = .15;
             inner_y_vel_p = -.15;
             %inner_z_vel_p = -.5;
             inner_x_vel_d = 03;
             inner_y_vel_d = 03;
+            %}
+            proportional_gain = 0.25;
+            integral_gain = 0.001;
+            derivative_gain = 0.25;
+
+            Or = state(4:6);
+            An = state(10:12);
+            world_vel = [1 0 0;0 -1 0;0 0 1]*[cos(Or(2))*cos(Or(3)), sin(Or(1))*sin(Or(2))*cos(Or(3))-cos(Or(1))*sin(Or(3)), cos(Or(1))*sin(Or(2))*cos(Or(3))-sin(Or(1))*sin(Or(3));
+                  cos(Or(2))*sin(Or(3)), sin(Or(1))*sin(Or(2))*sin(Or(3))-cos(Or(1))*cos(Or(3)), cos(Or(1))*sin(Or(2))*sin(Or(3))-sin(Or(1))*cos(Or(3));
+                -sin(Or(2)), sin(Or(1))*cos(Or(2)), cos(Or(1))*cos(Or(2))]*state(7:9);
+            
+            proportional_error = set_points-world_vel;
+            % Delta_t should probably be a control property
+            sys.integral_error = sys.integral_error + proportional_error*0.01;
+            derivative_error = -cross(An,state(7:9));
+            
+            % Calculate nominal required force required in world frame
+            world_force = [set_points(1)*sys.mu;set_points(2)*sys.mu;-9.81*sys.m];
+            % Add correctiive control terms
+            world_force = world_force + proportional_gain*proportional_error + integral_gain*sys.integral_error + derivative_gain*derivative_error;
+            wf_unit = world_force/norm(world_force);
+            d = dot([0;0;-1],wf_unit);
+            q = acos(d);
+            c = cross([0;0;-1],wf_unit);
+            c = sin(q/2)*c/norm(c);
+
+            w = cos(q/2);
+            x = c(1);
+            y = c(2);
+            z = c(3);
+
+            w2 = w^2;
+            x2 = x^2;
+            y2 = y^2;
+            z2 = z^2;
+
+            Rd = [w2+x2-y2-z2 2*(x*y-w*z) 2*(w*y+x*z);2*(x*y+w*z) w2-x2+y2-z2 2*(y*z-w*x);2*(x*z-w*y) 2*(w*x+y*z) w2-x2-y2+z2];
+
+            setYaw = atan2(Rd(2,1),Rd(1,1));
+            setRoll = atan2(Rd(3,2),Rd(3,3));
+            setPitch = atan2(-Rd(3,1),Rd(3,3)/cos(setYaw));
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%
+            %{
             Or = state(4:6);
             An = state(10:12);
             world_vel = [1 0 0;0 -1 0;0 0 1]*[cos(Or(2))*cos(Or(3)), sin(Or(1))*sin(Or(2))*cos(Or(3))-cos(Or(1))*sin(Or(3)), cos(Or(1))*sin(Or(2))*cos(Or(3))-sin(Or(1))*sin(Or(3));
@@ -83,8 +128,9 @@ classdef control < handle
   
             setRoll = state(5)+inner_y_vel_p*(world_vel(2)-set_points(2));
             setPitch = state(4)+inner_x_vel_p*(world_vel(1)-set_points(1));
-
-            inner_set_points = [setRoll;setPitch;0;20];
+            %}
+%~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%
+            inner_set_points = [setRoll;setPitch;0;norm(world_force)];
         end
     end
     properties
@@ -99,6 +145,7 @@ classdef control < handle
         yaw_d
         velocity_p
         A
+        integral_error
     end
 end
         

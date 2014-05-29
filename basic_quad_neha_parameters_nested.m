@@ -7,8 +7,8 @@ clc
 n = 2500;
 
 % Define copter properties
-mass = 3; %kg
-mu = 2; %drag coefficient
+mass = 3*(1 + (rand()-0.5)/5); %kg
+mu = .1*(1 + (rand()-0.5)/5); %drag coefficient
 
 % Define Initial state
 pos = [0;0;-100];
@@ -61,10 +61,11 @@ world_vel = zeros(4,n);
 % Start timer on simulation, for evaluation purposes
 tic
 set_points = 0;
+cnst_err = [0;0;0;0;0;0;2*rand()-1;2*rand()-1;.5*rand-.25;0;0;0];
 for i = 1:n
-    inner_loop_set_points = cntrl.outer_loop(copter.State,[0,-2,0]);
+    inner_loop_set_points = cntrl.outer_loop(copter.State+cnst_err,[2;-1;0]);
     %inner_loop_set_points = [0;0;0;0];
-    thrust(:,i) = cntrl.inner_loop(inner_loop_set_points,copter.State);
+    thrust(:,i) = cntrl.inner_loop(inner_loop_set_points,copter.State+cnst_err);
     
     % Apply the commanded thrusts
     result = cntrl.A*thrust(:,i);
