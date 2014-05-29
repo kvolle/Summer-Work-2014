@@ -40,7 +40,7 @@ altimeter = zeros(n);
 % Characterize the sensor noise/error
 std_dev_acc = 1;
 mean_err_acc = 0;
-accel_drift_rate = [0;0;0];
+acc_drift_rate = [0;0;0];
 std_dev_gyro = 1;
 mean_err_gyro = 0;
 gyro_drift_rate = [0;0;0];
@@ -62,7 +62,7 @@ world_vel = zeros(4,n);
 tic
 set_points = 0;
 for i = 1:n
-    inner_loop_set_points = cntrl.outer_loop(copter.State,[2,-2,0]);
+    inner_loop_set_points = cntrl.outer_loop(copter.State,[0,-2,0]);
     %inner_loop_set_points = [0;0;0;0];
     thrust(:,i) = cntrl.inner_loop(inner_loop_set_points,copter.State);
     
@@ -85,9 +85,10 @@ for i = 1:n
     debug(:,i) = copter.Force;%(mu)*copter.State(7:9);
   
     % Update accelerometer reading
-    accel_noise = std_dev_accel*rand(3,1) + mean_err_acc;
-    accel_drift = accel_drift_rate*time(i);
-    accelerometer(:,i) = -cross(copter.State(10:12),copter.State(7:9)) - mu*copter.State(7:9)/mass - [0;0;sum(thrust(:,i))/mass] + accel_noise + accel_drift;
+    accel_noise = std_dev_acc*rand(3,1) + mean_err_acc;
+    accel_drift = acc_drift_rate*time(i);
+    % Neglecting vertical drag in next line
+    accelerometer(:,i) = -cross(copter.State(10:12),copter.State(7:9)) - [mu*copter.State(7:8)/mass;sum(thrust(:,i))/mass] + accel_noise + accel_drift;
     
     % Update gyroscope reading
     gyro_noise = std_dev_gyro*rand(3,1) + mean_err_gyro;
@@ -97,7 +98,7 @@ for i = 1:n
     % Update flow sensor reading
     flow_noise = std_dev_flow*rand(2,1) + mean_err_flow;
     flow_drift = flow_drift_rate*time(i);
-    flow(:,i) = copter.state(10:12) + flow_noise + flow_drift;
+    flow(:,i) = copter.State(10:11) + flow_noise + flow_drift;
     
     % Update altimeter reading
     altimeter_noise = std_dev_altimeter*rand(1,1) +mean_err_altimeter;
