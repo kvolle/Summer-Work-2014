@@ -30,8 +30,9 @@ classdef control < handle
             d = cross(thruster4(1:3,4),[0;0;-1]);
             sys.A = [a b c d];
             sys.A(4,:) = [-1 -1 -1 -1];
-            sys.A = sys.A + [0 0 0 0;0 0 0 0;.013 -.013 .013 -.013 ;0 0 0 0];
-
+            %there is a +/- 10% error in the yaw torque coefficient
+            sys.A_actual = sys.A + [0 0 0 0;0 0 0 0;.013*(0.9+rand()/5) -.013*(0.9+rand()/5) .013*(0.9+rand()/5) -.013*(0.9+rand()/5) ;0 0 0 0];
+            sys.A_model = sys.A + [0 0 0 0;0 0 0 0;0.13 -0.13 0.13 -0.13; 0 0 0 0];
 
             % Thrusters 1 and 3 rotate: CCW (posative yaw)
             % Thrusters 2 and 4 rotate: CW (negative yaw)
@@ -53,13 +54,9 @@ classdef control < handle
     
             % Calculate desired moments
             moments = sys.Ib*[roll_accel;pitch_accel;yaw_accel];
-    
-            % Calculate desired force along body Z
-            force = sys.m*sys.velocity_p*State(9);
 
             % Calculate required thrust
-            thrust = sys.A\[moments;-set_points(4)];%force];
-
+            thrust = sys.A_actual\[moments;-set_points(4)];
     
             % Apply thrust limiting (20 N / 4.5 lbf) 
             for j = 1:4
@@ -78,9 +75,9 @@ classdef control < handle
             inner_x_vel_d = 03;
             inner_y_vel_d = 03;
             %}
-            proportional_gain = 0.25;
+            proportional_gain = 02.5;
             integral_gain = 0.001;
-            derivative_gain = 0.25;
+            derivative_gain = 05;
 
             Or = state(4:6);
             An = state(10:12);
@@ -88,7 +85,7 @@ classdef control < handle
                   cos(Or(2))*sin(Or(3)), sin(Or(1))*sin(Or(2))*sin(Or(3))-cos(Or(1))*cos(Or(3)), cos(Or(1))*sin(Or(2))*sin(Or(3))-sin(Or(1))*cos(Or(3));
                 -sin(Or(2)), sin(Or(1))*cos(Or(2)), cos(Or(1))*cos(Or(2))]*state(7:9);
             
-            proportional_error = set_points-world_vel;
+            proportional_error = set_points(1:3)-world_vel;
             % Delta_t should probably be a control property
             sys.integral_error = sys.integral_error + proportional_error*0.01;
             derivative_error = -cross(An,state(7:9));
@@ -115,7 +112,7 @@ classdef control < handle
 
             Rd = [w2+x2-y2-z2 2*(x*y-w*z) 2*(w*y+x*z);2*(x*y+w*z) w2-x2+y2-z2 2*(y*z-w*x);2*(x*z-w*y) 2*(w*x+y*z) w2-x2-y2+z2];
 
-            setYaw = atan2(Rd(2,1),Rd(1,1));
+            setYaw = Or(3)+0.01*set_points(4);%atan2(Rd(2,1),Rd(1,1));
             setRoll = atan2(Rd(3,2),Rd(3,3));
             setPitch = atan2(-Rd(3,1),Rd(3,3)/cos(setYaw));
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%
@@ -130,7 +127,7 @@ classdef control < handle
             setPitch = state(4)+inner_x_vel_p*(world_vel(1)-set_points(1));
             %}
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%
-            inner_set_points = [setRoll;setPitch;0;norm(world_force)];
+            inner_set_points = [setRoll;setPitch;setYaw;norm(world_force)];
         end
     end
     properties
@@ -145,6 +142,8 @@ classdef control < handle
         yaw_d
         velocity_p
         A
+        A_actual
+        A_model
         integral_error
     end
 end

@@ -1,17 +1,17 @@
-%function error = basic_quad()
+  %function error = basic_quad()
 %SUMMER PROJECT VERSION
 clear all
 clc
 
 % Define simulation duration (tf = n/100)
-n = 2500;
+n = 2000;
 
 % Define copter properties
-mass = 3*(1 + (rand()-0.5)/5); %kg
-mu = .1*(1 + (rand()-0.5)/5); %drag coefficient
+mass = 3;%*(0.9 + rand()/5); %kg (with up to plus/minus 10% error)
+mu = .1;%*(0.9 + rand()/5); %drag coefficient (up to plus/minus 10% error)
 
 % Define Initial state
-pos = [0;0;-100];
+pos = [0;0;-5];
 or = [rand()-0.5;rand()-0.5;(rand()-0.5)]/1000000;
 vel = [0;0;0];
 ang = [0;0;0];
@@ -61,14 +61,20 @@ world_vel = zeros(4,n);
 % Start timer on simulation, for evaluation purposes
 tic
 set_points = 0;
-cnst_err = [0;0;0;0;0;0;2*rand()-1;2*rand()-1;.5*rand-.25;0;0;0];
+% Velocity has +/- 1m/s error in u,v and +/- 0.25 m/s error in w
+cnst_err = zeros(12,1);%[0;0;0;0;0;0;2*rand()-1;2*rand()-1;.5*rand-.25;0;0;0];
+path = zeros(4,n);
+for i =1:n/2
+    path(1,i) = 3;
+    path(2,i+n/2) = 3;
+end
 for i = 1:n
-    inner_loop_set_points = cntrl.outer_loop(copter.State+cnst_err,[2;-1;0]);
+    inner_loop_set_points = cntrl.outer_loop(copter.State+cnst_err,path(:,i));
     %inner_loop_set_points = [0;0;0;0];
     thrust(:,i) = cntrl.inner_loop(inner_loop_set_points,copter.State+cnst_err);
     
     % Apply the commanded thrusts
-    result = cntrl.A*thrust(:,i);
+    result = cntrl.A_actual*thrust(:,i);
     copter.Moment = result(1:3);
     copter.Force = [0;0;0];
     copter.Force(3) = result(4);
@@ -82,6 +88,7 @@ for i = 1:n
     position(1,i) = copter.State(1);
     position(2,i) = copter.State(2);
     position(3,i) = -copter.State(3);
+    body_vel(:,i) = copter.State(7:9);
     vert_vel(i) = -copter.State(9);
     debug(:,i) = copter.Force;%(mu)*copter.State(7:9);
   
@@ -120,10 +127,23 @@ hold on
 plot(time,debug(2,:),'g');
 plot(time,debug(3,:),'b');
 %}
+world_vel = zeros(3,n);
 %
 for i = 2:n
-    world_vel = (position(:,i)-position(:,i-1))*100;
+    %world_vel(:,i) = (position(:,i)-position(:,i-1))*100;
+    world_vel(1,i) = (position(1,i)-position(1,i-1))*100;
+    world_vel(2,i) = (position(2,i)-position(2,i-1))*100;
+    world_vel(3,i) = (position(3,i)-position(3,i-1))*100;
 end
+figure(3)
+plot(time,body_vel(1,:),'r');
+hold on
+plot(time,body_vel(2,:),'g');
+plot(time,body_vel(3,:),'b');
+title('Body Frame Velocity');
+xlabel('Time (s)');
+ylabel('Velocity (m/s)');
+
 figure(4)
 plot(time,world_vel(1,:),'r.-');
 hold on
