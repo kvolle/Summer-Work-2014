@@ -1,0 +1,21 @@
+# IT IS UNLIKELY YOU WANT TO EDIT THIS FILE BY HAND,
+# UNLESS FOR REMOVING ENTRIES.
+# IF YOU WANT TO CHANGE THE ROS ENVIRONMENT VARIABLES
+# USE THE rosinstall TOOL INSTEAD.
+# IF YOU CHANGE IT, USE rosinstall FOR THE CHANGES TO TAKE EFFECT
+- other: {local-name: /opt/ros/fuerte/share/ros}
+- other: {local-name: /opt/ros/fuerte/share}
+- other: {local-name: /opt/ros/fuerte/stacks}
+- setup-file: {local-name: /opt/ros/fuerte/setup.sh}
+- git: {local-name: basic_quad_tools, uri: /home/joey/tmp/basic_quad_tools}
+- git: {local-name: hector_slam, uri: 'https://github.com/tu-darmstadt-ros-pkg/hector_slam'}
+- git: {local-name: hector_localization, uri: 'https://github.com/tu-darmstadt-ros-pkg/hector_localization'}
+- git: {local-name: hector_woldmodel, uri: 'https://github.com/tu-darmstadt-ros-pkg/hector_worldmodel'}
+- git: {local-name: hector_quadrotor_experimental, uri: 'https://github.com/tu-darmstadt-ros-pkg/hector_quadrotor_experimental'}
+- git: {local-name: hector_navigation, uri: 'https://github.com/tu-darmstadt-ros-pkg/hector_navigation'}
+- git: {local-name: hector_visualization, uri: 'https://github.com/tu-darmstadt-ros-pkg/hector_visualization'}
+- other: {local-name: hector_quadrotor}
+- other: {local-name: hector_gazebo}
+- other: {local-name: hector_models}
+- other: {local-name: hector_common}
+- other: {local-name: hector_quadrotor_apps}

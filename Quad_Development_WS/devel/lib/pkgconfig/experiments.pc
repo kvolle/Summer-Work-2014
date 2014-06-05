@@ -1,0 +1,8 @@
+prefix=/home/kyle/Dropbox/Desktop/Summer-Work-2014/Quad_Development_WS/devel
+
+Name: experiments
+Description: Description of experiments
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/kyle/Dropbox/Desktop/Summer-Work-2014/Quad_Development_WS/devel/lib 
+Requires: 
