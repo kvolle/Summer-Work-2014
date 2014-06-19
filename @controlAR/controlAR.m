@@ -1,6 +1,6 @@
-classdef control < handle
+classdef controlAR < handle
     methods
-        function sys = control(m,Ib,mu,inner_loop_gains)
+        function sys = controlAR(m,Ib,mu,inner_loop_gains)
             sys.m = m;
             sys.Ib = Ib;
             sys.mu = mu;
@@ -17,11 +17,10 @@ classdef control < handle
             sys.integral_error = [0;0;0];
         end
         function  geometry(sys)
-        	% Define 4 HTMs describing propeller location
-            thruster1 = [1 0 0 .0707;0 1 0 -.0707;0 0 1 0;0 0 0 1];
-            thruster2 = [1 0 0 -.0707;0 1 0 -.0707;0 0 1 0;0 0 0 1];
-            thruster3 = [1 0 0 -.0707;0 1 0 .0707;0 0 1 0;0 0 0 1];
-            thruster4 = [1 0 0 .0707;0 1 0 .0707;0 0 1 0;0 0 0 1];
+        	thruster1 = [1 0 0 0.113137;0 1 0 -.113137;0 0 1 0;0 0 0 1];
+            thruster2 = [1 0 0 -.113137;0 1 0 -.113137;0 0 1 0;0 0 0 1];
+            thruster3 = [1 0 0 -.113137;0 1 0 0.113137;0 0 1 0;0 0 0 1];
+            thruster4 = [1 0 0 0.113137;0 1 0 0.113137;0 0 1 0;0 0 0 1];
 
             % A matrix converts thrust commands to moments and total thrust
             a = cross(thruster1(1:3,4),[0;0;-1]);
@@ -31,9 +30,8 @@ classdef control < handle
             sys.A = [a b c d];
             sys.A(4,:) = [-1 -1 -1 -1];
             %there is a +/- 10% error in the yaw torque coefficient
-            sys.A_actual = sys.A + [0 0 0 0;0 0 0 0;.013*(0.9+rand()/5) -.013*(0.9+rand()/5) .013*(0.9+rand()/5) -.013*(0.9+rand()/5) ;0 0 0 0];
-            sys.A_model = sys.A + [0 0 0 0;0 0 0 0;0.13 -0.13 0.13 -0.13; 0 0 0 0];
-
+            sys.A_actual = sys.A + [0 0 0 0;0 0 0 0;.1468 -.1468 .1468 -.1468 ;0 0 0 0];
+            sys.A_model = sys.A + [0 0 0 0;0 0 0 0;0.1468 -0.1468 0.1468 -0.1468; 0 0 0 0];
             % Thrusters 1 and 3 rotate: CCW (posative yaw)
             % Thrusters 2 and 4 rotate: CW (negative yaw)
         end
@@ -68,27 +66,24 @@ classdef control < handle
             end
         end
         function inner_set_points = outer_loop(sys,state, set_points)
-            % Define PID gains
-            proportional_gain = 02.5;
+            %{
+            inner_x_vel_p = .15;
+            inner_y_vel_p = -.15;
+            %inner_z_vel_p = -.5;
+            inner_x_vel_d = 03;
+            inner_y_vel_d = 03;
+            %}
+            proportional_gain = 0.5;
             integral_gain = 0.001;
-            derivative_gain = 0.5;
-            
-            % Define Euler angle vector
+            derivative_gain = .50;
+
             Or = state(4:6);
-            % Define angular rate vector
             An = state(10:12);
-            % Convert body velocity to world frame
-            world_vel = [cos(Or(2))*cos(Or(3)) -cos(Or(2))*sin(Or(3)) sin(Or(2));...
-                       cos(Or(1))*sin(Or(3))+cos(Or(3))*sin(Or(1))*sin(Or(2)) cos(Or(1))*cos(Or(3))-sin(Or(1))*sin(Or(2))*sin(Or(3)) -cos(Or(2))*sin(Or(1));...
-                       sin(Or(1))*sin(Or(3))-cos(Or(1))*cos(Or(3))*sin(Or(2)) cos(Or(3))*sin(Or(1))+cos(Or(1))*sin(Or(2))*sin(Or(3)) cos(Or(1))*cos(Or(2))]*state(7:9);
+            world_vel = [1 0 0;0 -1 0;0 0 1]*[cos(Or(2))*cos(Or(3)), sin(Or(1))*sin(Or(2))*cos(Or(3))-cos(Or(1))*sin(Or(3)), cos(Or(1))*sin(Or(2))*cos(Or(3))-sin(Or(1))*sin(Or(3));
+                  cos(Or(2))*sin(Or(3)), sin(Or(1))*sin(Or(2))*sin(Or(3))-cos(Or(1))*cos(Or(3)), cos(Or(1))*sin(Or(2))*sin(Or(3))-sin(Or(1))*cos(Or(3));
+                -sin(Or(2)), sin(Or(1))*cos(Or(2)), cos(Or(1))*cos(Or(2))]*state(7:9);
             
-            vehicle1_vel = [cos(Or(3)) -sin(Or(3)) 0;sin(Or(3)) cos(Or(3)) 0;0 0 1]*state(7:9);
-           
-            
-            set_points(1:3) = [cos(Or(3)) -sin(Or(3)) 0;sin(Or(3)) cos(Or(3)) 0;0 0 1]*set_points(1:3);
-            % proportional_error = set_points(1:3)-world_vel;
-            proportional_error = set_points(1:3)-vehicle1_vel;
-            
+            proportional_error = set_points(1:3)-world_vel;
             % Delta_t should probably be a control property
             sys.integral_error = sys.integral_error + proportional_error*0.01;
             derivative_error = -cross(An,state(7:9));
@@ -115,7 +110,7 @@ classdef control < handle
 
             Rd = [w2+x2-y2-z2 2*(x*y-w*z) 2*(w*y+x*z);2*(x*y+w*z) w2-x2+y2-z2 2*(y*z-w*x);2*(x*z-w*y) 2*(w*x+y*z) w2-x2-y2+z2];
 
-            setYaw = Or(3);%+0.01*set_points(4);%atan2(Rd(2,1),Rd(1,1));
+            setYaw = Or(3)+0.01*set_points(4);%atan2(Rd(2,1),Rd(1,1));
             setRoll = atan2(Rd(3,2),Rd(3,3));
             setPitch = atan2(-Rd(3,1),Rd(3,3)/cos(setYaw));
 %~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%
@@ -150,3 +145,4 @@ classdef control < handle
         integral_error
     end
 end
+        
